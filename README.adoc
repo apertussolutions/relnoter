@@ -1,0 +1,63 @@
+= OpenXT Release Note Container
+:source-highlighter: coderay
+
+== The environment
+
+This Docker container is an extension of the 
+https://hub.docker.com/r/asciidoctor/docker-asciidoctor/[Asciidoctor Docker Contatiner].
+
+== How to use
+
+Run the Docker container:
+
+[source,bash]
+----
+docker run -it --rm -v <your directory>:/documents/ openxt-release
+----
+
+Docker will map _<your directory>_ to _/documents_ and this will be your 
+working directory upon entering the container.
+
+There are two scripts available under _/release_:
+
+* generate_release.py - Creates a skeleton asciidoc release note file
+* generate_pdf.sh - Creates a PDF of an asciidoc file using a custom 
+Asciidoctor theme.
+
+=== Release Note Generator
+
+The script _generate_release.py_ will generate a skeleton release note file 
+that provides all changes between the two releases provided as commandline 
+parameters
+
+[source,bash]
+----
+usage: generate_release.py [-h] [-p PATH] [-A AUTHOR] [-E EMAIL] [-R RELNUM]
+                           [-P PLATFORM] [-T TESTING] [-K KNOWN] [-o OUTPUT]
+                           [-j]
+                           previous new
+
+positional arguments:
+  previous              the git reference for previous release
+  new                   the git reference for the new release
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -p PATH, --path PATH  directory where git repositories will be stored
+  -A AUTHOR, --author AUTHOR
+                        author's name
+  -E EMAIL, --email EMAIL
+                        author's email
+  -R RELNUM, --relnum RELNUM
+                        release version number
+  -P PLATFORM, --platform PLATFORM
+                        path to file with "Platform" body
+  -T TESTING, --testing TESTING
+                        path to file with "Testing" body
+  -K KNOWN, --known KNOWN
+                        path to file with "Known Issues" body
+  -o OUTPUT, --output OUTPUT
+                        file name for asciidoc file
+  -j, --json            generate json file of commits
+----
+
