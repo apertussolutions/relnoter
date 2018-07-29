@@ -282,10 +282,11 @@ class Release:
         self.contributors = list(set(self.contributors))
 
 class ReleaseDocument:
-    def __init__(self, filepath="release.adoc", relnum="X.Y.Z", author="Author Name", email="author@email.com", rev="1.0", rev_string="First"):
+    def __init__(self, filepath="release.adoc", relnum="X.Y.Z", author="Author Name", email="author@email.com", entity="copyright holding entity", rev="1.0", rev_string="First"):
         self.relnum = relnum
         self.author = author
         self.email = email
+        self.entity = entity
         self.rev = rev
         self.rev_string = rev_string
 
@@ -442,8 +443,8 @@ class ReleaseDocument:
         fd = self.fd
 
         fd.write("[appendix]\nLicense\n-------\n")
-        fd.write("Copyright 2017 by <copyright holding entity>. ")
-        fd.write("Created by %s <%s>." % (self.author, self.email))
+        fd.write("Copyright %s by <%s>. " % (datetime.now().year, self.entity))
+        fd.write("Created by %s <%s>. " % (self.author, self.email))
         fd.write("This work is licensed under the Creative Commons " +
                  "Attribution 4.0 International License. To view a copy of " +
                  "this license, visit http://creativecommons.org/licenses/by/4.0/.\n")
@@ -474,6 +475,8 @@ def main(base_path, out, refs, publish, bodies, gen_json=False):
         doc.author = publish['author']
     if publish['email']:
         doc.email = publish['email']
+    if publish['entity']:
+        doc.entity = publish['entity']
 
     doc.header_page()
     doc.platform_page(bodies['platform'])
@@ -492,6 +495,7 @@ if __name__ == '__main__':
     parser.add_argument("-p", "--path", help="directory where git repositories will be stored")
     parser.add_argument("-A", "--author", help="author's name")
     parser.add_argument("-E", "--email", help="author's email")
+    parser.add_argument("-G", "--entity", help="copyright holding entity")
     parser.add_argument("-R", "--relnum", help="release version number")
     parser.add_argument("-P", "--platform", help="path to file with \"Platform\" body")
     parser.add_argument("-T", "--testing", help="path to file with \"Testing\" body")
@@ -516,6 +520,7 @@ if __name__ == '__main__':
 
     publish['author'] = args.author if args.author else ""
     publish['email'] = args.email if args.email else ""
+    publish['entity'] = args.entity if args.entity else ""
     publish['relnum'] = args.relnum if args.relnum else ""
 
     bodies['platform'] = args.platform if args.platform else ""
