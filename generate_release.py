@@ -160,10 +160,15 @@ class Repository:
             pc = sh.wc(sh.git("ls-remote", "--heads", self.GITHUB_URL + repo_name, previous), "-l").stdout.decode('utf-8').strip()
             nc = sh.wc(sh.git("ls-remote", "--heads", self.GITHUB_URL + repo_name, new), "-l").stdout.decode('utf-8').strip()
 
-            if pc == "0" or nc == "0":
+            if pc == "0":
+                sys.stderr.write("No tag or head %s for repository %s\n", previous, self.GITHUB_URL + repo_name)
+                raise Error
+            if nc == "0":
+                sys.stderr.write("No tag or head %s for repository %s\n", new, self.GITHUB_URL + repo_name)
                 raise Error
 
-        except sh.ErrorReturnCode:
+        except sh.ErrorReturnCode as e:
+            print(e)
             raise Error
 
         try:
@@ -237,7 +242,7 @@ class Release:
                 continue
 
         if not self.repos:
-            sys.stderr.write("Unable to find any repo with both references, %s and %s." % (previous, new))
+            sys.stderr.write("Unable to find any repo with both references, %s and %s.\n" % (previous, new))
             raise Error
 
     def generate(self):
@@ -435,7 +440,11 @@ class ReleaseDocument:
         fd.flush()
 
 def main(base_path, out, refs, publish, bodies, gen_json=False):
-    release = Release(refs[0], refs[1], base_path, Release.FETCH_ISSUES)
+    try:
+        release = Release(refs[0], refs[1], base_path, Release.FETCH_ISSUES)
+    except:
+        sys.stderr.write("Abort...\n")
+        sys.exit(1)
 
     release.generate()
 
