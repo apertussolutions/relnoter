@@ -157,8 +157,8 @@ class Repository:
 
         # Check the remote for refs before attempting anything
         try:
-            pc = sh.wc(sh.git("ls-remote", "--heads", self.GITHUB_URL + repo_name, previous), "-l").stdout.decode('utf-8').strip()
-            nc = sh.wc(sh.git("ls-remote", "--heads", self.GITHUB_URL + repo_name, new), "-l").stdout.decode('utf-8').strip()
+            pc = sh.wc(sh.git("ls-remote", "--heads", "--tags", self.GITHUB_URL + repo_name, previous), "-l").stdout.decode('utf-8').strip()
+            nc = sh.wc(sh.git("ls-remote", "--heads", "--tags", self.GITHUB_URL + repo_name, new), "-l").stdout.decode('utf-8').strip()
 
             if pc == "0":
                 sys.stderr.write("No tag or head %s for repository %s\n", previous, self.GITHUB_URL + repo_name)
