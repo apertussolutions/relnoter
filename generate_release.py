@@ -171,11 +171,12 @@ class Repository:
             print(e)
             raise Error
 
-        try:
-            sh.git.clone("--mirror", self.url, self.repodir)
-        except sh.ErrorReturnCode:
-            sys.stderr.write("Failed to mirror repo url: %s\n" % self.url)
-            raise Error
+        if not os.path.isdir(self.repodir):
+            try:
+                sh.git.clone("--mirror", self.url, self.repodir)
+            except sh.ErrorReturnCode:
+                sys.stderr.write("Failed to mirror repo url: %s\n" % self.url)
+                raise Error
 
         try:
             repo_path = pygit2.discover_repository(self.repodir)
