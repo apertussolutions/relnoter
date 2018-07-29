@@ -41,7 +41,7 @@ class Issues:
 
     @staticmethod
     def get_issue(issue):
-        if not Issues.issues.has_key(issue):
+        if not issue in Issues.issues:
             url = "https://openxt.atlassian.net/rest/api/latest/issue/" + issue
             try:
                 r = requests.get(url)
@@ -206,7 +206,7 @@ class Repository:
             if Commit.is_merge(c):
                 continue
 
-            if not self.authors.has_key(c.author_email):
+            if not c.author_email in self.authors:
                 self.authors[c.author_email] = c.author_name
 
             for s in c.signers:
