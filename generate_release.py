@@ -157,8 +157,8 @@ class Repository:
 
         # Check the remote for refs before attempting anything
         try:
-            pc = sh.wc(sh.git("ls-remote", "--heads", self.GITHUB_URL + repo_name, previous), "-l").stdout.strip()
-            nc = sh.wc(sh.git("ls-remote", "--heads", self.GITHUB_URL + repo_name, new), "-l").stdout.strip()
+            pc = sh.wc(sh.git("ls-remote", "--heads", self.GITHUB_URL + repo_name, previous), "-l").stdout.decode('utf-8').strip()
+            nc = sh.wc(sh.git("ls-remote", "--heads", self.GITHUB_URL + repo_name, new), "-l").stdout.decode('utf-8').strip()
 
             if pc == "0" or nc == "0":
                 raise Error
@@ -183,7 +183,7 @@ class Repository:
         self.commits = []
 
         try:
-            cherry = filter(None, sh.git.cherry(self.previous, self.new, _cwd=self.repodir).stdout.split("\n"))
+            cherry = filter(None, sh.git.cherry(self.previous, self.new, _cwd=self.repodir).stdout.decode('utf-8').split("\n"))
             cherry = filter(lambda i: i[0] == "+", cherry)
             if cherry:
                 commit_list = [x[2:].strip() for x in cherry]
