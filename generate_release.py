@@ -222,6 +222,12 @@ class Repository:
 class Release:
     FETCH_ISSUES = 1
     REPO_URL = "https://api.github.com/users/openxt/repos?per_page=100"
+    REPO_BLACKLIST = [ "bats-suite", "bvt",
+                       "docs", "openxt.github.io",
+                       "blktap", "blktap3",
+                       "bootage", "cdrom-daemon", "ocaml",
+                       "meta-openxt-base", "meta-openxt-qt", "meta-openxt-remote-management", "meta-selinux"
+                    ]
 
     def __init__(self, previous, new, workdir, flags=0):
         self.workdir = workdir
@@ -230,13 +236,16 @@ class Release:
         self.flags = flags
 
         try:
-            repo_list = sh.tr(sh.jq(sh.curl("-s", self.REPO_URL), "-M", ".[].name"),"-d", "\"").stdout.split("\n")
+            repourl = sh.curl("-s", self.REPO_URL)
+            jq_raw = sh.jq(repourl, "-M", ".[].name")
+            repo_list = list(filter(None, jq_raw.replace("\"", "").split("\n")))
         except sh.ErrorReturnCode:
             sys.stderr.write("Failed retrieving OpenXT repository list from Github.")
             raise Error
 
         self.repos = []
-        for r in repo_list:
+        whitelisted = lambda x: not x in self.REPO_BLACKLIST
+        for r in list(filter(whitelisted, repo_list)):
             try:
                 self.repos.append(Repository(r,previous,new,workdir))
             except:
