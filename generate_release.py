@@ -397,7 +397,7 @@ class ReleaseDocument:
     def testing_page(self, path):
         fd = self.fd
 
-        fd.write(":numbered:\nTesting\n-------------\n")
+        fd.write(":numbered:\nTesting\n-------\n")
         fd.write("\n")
 
         if path:
@@ -412,7 +412,7 @@ class ReleaseDocument:
     def known_issues_page(self, path):
         fd = self.fd
 
-        fd.write(":numbered:\nKnown Issues\n-------------\n")
+        fd.write(":numbered:\nKnown Issues\n------------\n")
         fd.write("\n")
 
         if path:
