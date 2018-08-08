@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 # The MIT License (MIT)
 # Copyright (c) 2017 Apertus Solutions, LLC
@@ -41,7 +41,7 @@ class Issues:
 
     @staticmethod
     def get_issue(issue):
-        if not Issues.issues.has_key(issue):
+        if not issue in Issues.issues:
             url = "https://openxt.atlassian.net/rest/api/latest/issue/" + issue
             try:
                 r = requests.get(url)
@@ -157,20 +157,26 @@ class Repository:
 
         # Check the remote for refs before attempting anything
         try:
-            pc = sh.wc(sh.git("ls-remote", "--heads", self.GITHUB_URL + repo_name, previous), "-l").stdout.strip()
-            nc = sh.wc(sh.git("ls-remote", "--heads", self.GITHUB_URL + repo_name, new), "-l").stdout.strip()
+            pc = sh.wc(sh.git("ls-remote", "--heads", "--tags", self.GITHUB_URL + repo_name, previous), "-l").stdout.decode('utf-8').strip()
+            nc = sh.wc(sh.git("ls-remote", "--heads", "--tags", self.GITHUB_URL + repo_name, new), "-l").stdout.decode('utf-8').strip()
 
-            if pc == "0" or nc == "0":
+            if pc == "0":
+                sys.stderr.write("No tag or head %s for repository %s\n", previous, self.GITHUB_URL + repo_name)
+                raise Error
+            if nc == "0":
+                sys.stderr.write("No tag or head %s for repository %s\n", new, self.GITHUB_URL + repo_name)
                 raise Error
 
-        except sh.ErrorReturnCode:
+        except sh.ErrorReturnCode as e:
+            print(e)
             raise Error
 
-        try:
-            sh.git.clone("--mirror", self.url, self.repodir)
-        except sh.ErrorReturnCode:
-            sys.stderr.write("Failed to mirror repo url: %s\n" % self.url)
-            raise Error
+        if not os.path.isdir(self.repodir):
+            try:
+                sh.git.clone("--mirror", self.url, self.repodir)
+            except sh.ErrorReturnCode:
+                sys.stderr.write("Failed to mirror repo url: %s\n" % self.url)
+                raise Error
 
         try:
             repo_path = pygit2.discover_repository(self.repodir)
@@ -183,7 +189,7 @@ class Repository:
         self.commits = []
 
         try:
-            cherry = filter(None, sh.git.cherry(self.previous, self.new, _cwd=self.repodir).stdout.split("\n"))
+            cherry = filter(None, sh.git.cherry(self.previous, self.new, _cwd=self.repodir).stdout.decode('utf-8').split("\n"))
             cherry = filter(lambda i: i[0] == "+", cherry)
             if cherry:
                 commit_list = [x[2:].strip() for x in cherry]
@@ -206,7 +212,7 @@ class Repository:
             if Commit.is_merge(c):
                 continue
 
-            if not self.authors.has_key(c.author_email):
+            if not c.author_email in self.authors:
                 self.authors[c.author_email] = c.author_name
 
             for s in c.signers:
@@ -216,6 +222,12 @@ class Repository:
 class Release:
     FETCH_ISSUES = 1
     REPO_URL = "https://api.github.com/users/openxt/repos?per_page=100"
+    REPO_BLACKLIST = [ "bats-suite", "bvt",
+                       "docs", "openxt.github.io",
+                       "blktap", "blktap3",
+                       "bootage", "cdrom-daemon", "ocaml",
+                       "meta-openxt-base", "meta-openxt-qt", "meta-openxt-remote-management", "meta-selinux"
+                    ]
 
     def __init__(self, previous, new, workdir, flags=0):
         self.workdir = workdir
@@ -224,20 +236,23 @@ class Release:
         self.flags = flags
 
         try:
-            repo_list = sh.tr(sh.jq(sh.curl("-s", self.REPO_URL), "-M", ".[].name"),"-d", "\"").stdout.split("\n")
+            repourl = sh.curl("-s", self.REPO_URL)
+            jq_raw = sh.jq(repourl, "-M", ".[].name")
+            repo_list = list(filter(None, jq_raw.replace("\"", "").split("\n")))
         except sh.ErrorReturnCode:
             sys.stderr.write("Failed retrieving OpenXT repository list from Github.")
             raise Error
 
         self.repos = []
-        for r in repo_list:
+        whitelisted = lambda x: not x in self.REPO_BLACKLIST
+        for r in list(filter(whitelisted, repo_list)):
             try:
                 self.repos.append(Repository(r,previous,new,workdir))
             except:
                 continue
 
         if not self.repos:
-            sys.stderr.write("Unable to find any repo with both references, %s and %s." % (previous, new))
+            sys.stderr.write("Unable to find any repo with both references, %s and %s.\n" % (previous, new))
             raise Error
 
     def generate(self):
@@ -267,10 +282,11 @@ class Release:
         self.contributors = list(set(self.contributors))
 
 class ReleaseDocument:
-    def __init__(self, filepath="release.adoc", relnum="X.Y.Z", author="Author Name", email="author@email.com", rev="1.0", rev_string="First"):
+    def __init__(self, filepath="release.adoc", relnum="X.Y.Z", author="Author Name", email="author@email.com", entity="copyright holding entity", rev="1.0", rev_string="First"):
         self.relnum = relnum
         self.author = author
         self.email = email
+        self.entity = entity
         self.rev = rev
         self.rev_string = rev_string
 
@@ -427,15 +443,19 @@ class ReleaseDocument:
         fd = self.fd
 
         fd.write("[appendix]\nLicense\n-------\n")
-        fd.write("Copyright 2017 by <copyright holding entity>. ")
-        fd.write("Created by %s <%s>." % (self.author, self.email))
+        fd.write("Copyright %s by <%s>. " % (datetime.now().year, self.entity))
+        fd.write("Created by %s <%s>. " % (self.author, self.email))
         fd.write("This work is licensed under the Creative Commons " +
                  "Attribution 4.0 International License. To view a copy of " +
                  "this license, visit http://creativecommons.org/licenses/by/4.0/.\n")
         fd.flush()
 
 def main(base_path, out, refs, publish, bodies, gen_json=False):
-    release = Release(refs[0], refs[1], base_path, Release.FETCH_ISSUES)
+    try:
+        release = Release(refs[0], refs[1], base_path, Release.FETCH_ISSUES)
+    except:
+        sys.stderr.write("Abort...\n")
+        sys.exit(1)
 
     release.generate()
 
@@ -455,6 +475,8 @@ def main(base_path, out, refs, publish, bodies, gen_json=False):
         doc.author = publish['author']
     if publish['email']:
         doc.email = publish['email']
+    if publish['entity']:
+        doc.entity = publish['entity']
 
     doc.header_page()
     doc.platform_page(bodies['platform'])
@@ -473,6 +495,7 @@ if __name__ == '__main__':
     parser.add_argument("-p", "--path", help="directory where git repositories will be stored")
     parser.add_argument("-A", "--author", help="author's name")
     parser.add_argument("-E", "--email", help="author's email")
+    parser.add_argument("-G", "--entity", help="copyright holding entity")
     parser.add_argument("-R", "--relnum", help="release version number")
     parser.add_argument("-P", "--platform", help="path to file with \"Platform\" body")
     parser.add_argument("-T", "--testing", help="path to file with \"Testing\" body")
@@ -497,6 +520,7 @@ if __name__ == '__main__':
 
     publish['author'] = args.author if args.author else ""
     publish['email'] = args.email if args.email else ""
+    publish['entity'] = args.entity if args.entity else ""
     publish['relnum'] = args.relnum if args.relnum else ""
 
     bodies['platform'] = args.platform if args.platform else ""
